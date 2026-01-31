@@ -1,8 +1,6 @@
 const $ = (id) => document.getElementById(id);
 
-const state = {
-  items: [],
-};
+const state = { items: [] };
 
 function rupiah(n){
   const v = Number(n || 0);
@@ -18,7 +16,6 @@ function todayISO(){
 }
 
 function genInvoiceNo(){
-  // INV-YYYYMMDD-XXXX
   const d = new Date();
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,"0");
@@ -27,26 +24,119 @@ function genInvoiceNo(){
   return `INV-${y}${m}${day}-${rand}`;
 }
 
-function addRow(item = {qty:1, name:"", price:0}){
-  state.items.push(item);
-  renderItems();
-  calc();
+function typeLabel(v){
+  if (v === "penjualan") return "Penjualan";
+  if (v === "service") return "Service";
+  return "Gabungan";
 }
 
-function removeRow(idx){
-  state.items.splice(idx,1);
-  renderItems();
-  calc();
+function formatDate(iso){
+  const [y,m,d] = String(iso||"").split("-").map(Number);
+  if (!y || !m || !d) return iso || "-";
+  return `${String(d).padStart(2,"0")}-${String(m).padStart(2,"0")}-${y}`;
 }
 
+function escapeHtml(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#039;");
+}
+
+/* ---------- Settings (Logo/Nama/Stamp) ---------- */
+function loadSettings(){
+  const raw = localStorage.getItem("invoice_settings");
+  if (!raw) return { name:null, tagline:null, logoDataUrl:null, stampDataUrl:null };
+  try { return JSON.parse(raw); }
+  catch { return { name:null, tagline:null, logoDataUrl:null, stampDataUrl:null }; }
+}
+
+function saveSettings(s){
+  localStorage.setItem("invoice_settings", JSON.stringify(s));
+}
+
+function syncPaperBrand(){
+  // name & tagline
+  $("paperName").textContent = $("companyName").textContent || "";
+  $("paperTagline").textContent = $("companyTagline").textContent || "";
+
+  // logo for paper
+  $("paperLogo").src = $("companyLogo").src;
+
+  // stamp defaults to logo unless custom stamp exists
+  const s = loadSettings();
+  $("signLogo").src = s.stampDataUrl || $("companyLogo").src;
+
+  // (text under stamp is disabled by CSS, but keep empty)
+  $("pSignName").textContent = "";
+}
+
+function initSettingsUI(){
+  const s = loadSettings();
+
+  if (s.name) $("companyName").textContent = s.name;
+  if (s.tagline) $("companyTagline").textContent = s.tagline;
+
+  if (s.logoDataUrl) $("companyLogo").src = s.logoDataUrl;
+
+  // sync to paper
+  syncPaperBrand();
+
+  // preload modal inputs
+  $("setName").value = $("companyName").textContent || "";
+  $("setTagline").value = $("companyTagline").textContent || "";
+}
+
+function openModal(){ $("modal").classList.remove("hidden"); }
+function closeModal(){ $("modal").classList.add("hidden"); }
+
+function applySettings(){
+  const s = loadSettings();
+
+  s.name = ($("setName").value || "").trim() || "NAMA TOKO";
+  s.tagline = ($("setTagline").value || "").trim() || "Alamat / No. HP / Email";
+
+  // apply instantly
+  $("companyName").textContent = s.name;
+  $("companyTagline").textContent = s.tagline;
+
+  const logoFile = $("setLogo").files?.[0];
+  const stampFile = $("setStamp").files?.[0];
+
+  const readFileAsDataUrl = (file) => new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => resolve(null);
+    r.readAsDataURL(file);
+  });
+
+  (async () => {
+    if (logoFile){
+      const data = await readFileAsDataUrl(logoFile);
+      if (data) s.logoDataUrl = data;
+      if (data) $("companyLogo").src = data;
+    }
+
+    if (stampFile){
+      const data = await readFileAsDataUrl(stampFile);
+      if (data) s.stampDataUrl = data;
+    }
+
+    saveSettings(s);
+    syncPaperBrand();
+    closeModal();
+  })();
+}
+
+/* ---------- Items Table (NO rerender on typing) ---------- */
 function renderItems(){
   const body = $("itemsBody");
   body.innerHTML = "";
 
   state.items.forEach((it, idx) => {
     const tr = document.createElement("tr");
-    tr.dataset.row = idx;
-
     tr.innerHTML = `
       <td><input type="number" min="0" value="${it.qty}" data-k="qty" data-i="${idx}"/></td>
       <td><input type="text" value="${escapeHtml(it.name)}" data-k="name" data-i="${idx}" placeholder="Nama barang / jasa"/></td>
@@ -58,14 +148,17 @@ function renderItems(){
   });
 }
 
+function addRow(item = { qty: 1, name: "", price: 0 }){
+  state.items.push(item);
+  renderItems();
+  calc();
+}
 
-function escapeHtml(s){
-  return String(s ?? "")
-    .replaceAll("&","&amp;")
-    .replaceAll("<","&lt;")
-    .replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+function removeRow(idx){
+  state.items.splice(idx, 1);
+  if (state.items.length === 0) state.items = [{ qty:1, name:"", price:0 }];
+  renderItems();
+  calc();
 }
 
 function bindItemsEvents(){
@@ -75,29 +168,26 @@ function bindItemsEvents(){
     const key = el.dataset.k;
     if (Number.isNaN(idx) || !key) return;
 
-    // update state tanpa render ulang tabel
     if (key === "name") state.items[idx][key] = el.value;
     else state.items[idx][key] = Number(el.value);
 
-    // update subtotal row ini saja
+    // update subtotal cell only
     const it = state.items[idx];
     const sub = (Number(it.qty||0) * Number(it.price||0));
     const subEl = document.querySelector(`[data-subtotal="${idx}"]`);
     if (subEl) subEl.textContent = rupiah(sub);
 
-    // hitung ringkasan total
     calc();
   });
 
   $("itemsBody").addEventListener("click", (e) => {
     const btn = e.target.closest("button");
     if (!btn) return;
-    if (btn.dataset.act === "del"){
-      removeRow(Number(btn.dataset.i));
-    }
+    if (btn.dataset.act === "del") removeRow(Number(btn.dataset.i));
   });
 }
 
+/* ---------- Calc & Preview ---------- */
 function calc(){
   const subtotal = state.items.reduce((sum, it) => sum + (Number(it.qty||0) * Number(it.price||0)), 0);
   const disc = Number($("discount").value || 0);
@@ -107,7 +197,6 @@ function calc(){
   $("sumSubtotal").textContent = rupiah(subtotal);
   $("sumTotal").textContent = rupiah(total);
 
-  // update preview header & customer
   $("pType").textContent = typeLabel($("invoiceType").value);
   $("pDate").textContent = $("invoiceDate").value ? formatDate($("invoiceDate").value) : "-";
   $("pNo").textContent = $("invoiceNo").value || "-";
@@ -116,27 +205,15 @@ function calc(){
   $("pCustPhone").textContent = $("customerPhone").value || "-";
   $("pCustAddress").textContent = $("customerAddress").value || "-";
 
-  // signature uses company name
-  $("pSignName").textContent = "";
-
   // service section visibility
   const t = $("invoiceType").value;
   $("serviceSection").style.display = (t === "service" || t === "gabungan") ? "block" : "none";
+
+  syncPaperBrand();
 }
 
-function typeLabel(v){
-  if (v === "penjualan") return "Penjualan";
-  if (v === "service") return "Service";
-  return "Gabungan";
-}
-
-function formatDate(iso){
-  const [y,m,d] = iso.split("-").map(Number);
-  if (!y || !m || !d) return iso;
-  return `${String(d).padStart(2,"0")}-${String(m).padStart(2,"0")}-${y}`;
-}
-
-function saveAll(){
+/* ---------- Save/Load (Local) ---------- */
+function saveLocal(){
   const data = {
     invoiceType: $("invoiceType").value,
     invoiceDate: $("invoiceDate").value,
@@ -157,41 +234,36 @@ function saveAll(){
   alert("Tersimpan ✅");
 }
 
-function loadAll(){
+function loadLocal(){
   const raw = localStorage.getItem("invoice_data");
   if (!raw) return;
   try{
-    const data = JSON.parse(raw);
-    $("invoiceType").value = data.invoiceType || "penjualan";
-    $("invoiceDate").value = data.invoiceDate || todayISO();
-    $("invoiceNo").value = data.invoiceNo || genInvoiceNo();
+    const d = JSON.parse(raw);
+    $("invoiceType").value = d.invoiceType || "penjualan";
+    $("invoiceDate").value = d.invoiceDate || todayISO();
+    $("invoiceNo").value = d.invoiceNo || genInvoiceNo();
 
-    $("customerName").value = data.customerName || "";
-    $("customerPhone").value = data.customerPhone || "";
-    $("customerAddress").value = data.customerAddress || "";
+    $("customerName").value = d.customerName || "";
+    $("customerPhone").value = d.customerPhone || "";
+    $("customerAddress").value = d.customerAddress || "";
 
-    state.items = Array.isArray(data.items) ? data.items : [];
+    state.items = Array.isArray(d.items) ? d.items : [{qty:1, name:"", price:0}];
     if (state.items.length === 0) state.items = [{qty:1, name:"", price:0}];
 
-    $("discount").value = data.discount || 0;
-    $("tax").value = data.tax || 0;
-    $("terms").value = data.terms || "";
+    $("discount").value = d.discount || 0;
+    $("tax").value = d.tax || 0;
+    $("terms").value = d.terms || "";
 
-    $("svcDevice").value = data.svcDevice || "";
-    $("svcSN").value = data.svcSN || "";
-    $("svcWork").value = data.svcWork || "";
-    $("svcNote").value = data.svcNote || "";
-
-    renderItems();
-    calc();
-  }catch(e){
-    console.warn("Gagal load", e);
-  }
+    $("svcDevice").value = d.svcDevice || "";
+    $("svcSN").value = d.svcSN || "";
+    $("svcWork").value = d.svcWork || "";
+    $("svcNote").value = d.svcNote || "";
+  } catch {}
 }
 
 function resetAll(){
   localStorage.removeItem("invoice_data");
-  state.items = [{qty:1, name:"", price:0}];
+  state.items = [{ qty:1, name:"", price:0 }];
 
   $("invoiceType").value = "penjualan";
   $("invoiceDate").value = todayISO();
@@ -213,127 +285,59 @@ function resetAll(){
   calc();
 }
 
-function openModal(){ $("modal").classList.remove("hidden"); }
-function closeModal(){ $("modal").classList.add("hidden"); }
-
-function applySettings(){
-  const name = $("setName").value.trim() || "NAMA TOKO";
-  const tagline = $("setTagline").value.trim() || "Alamat / No. HP / Email";
-  $("companyName").textContent = name;
-  $("companyTagline").textContent = tagline;
-
-  // ambil settings lama agar tidak kehilangan data
-  const current = loadSettings();
-  const settings = { ...current, name, tagline };
-
-  const file = $("setLogo").files?.[0];
-  if (file){
-    const reader = new FileReader();
-    reader.onload = () => {
-      settings.logoDataUrl = reader.result;
-      $("companyLogo").src = settings.logoDataUrl;
-
-      // Logo tanda tangan mengikuti logo utama
-      if ($("signLogo")) $("signLogo").src = $("companyLogo").src;
-
-      localStorage.setItem("invoice_settings", JSON.stringify(settings));
-      closeModal();
-      calc();
-    };
-    reader.readAsDataURL(file);
-  } else {
-    // tidak upload logo -> pakai yang sudah ada
-    if (settings.logoDataUrl) $("companyLogo").src = settings.logoDataUrl;
-
-    // Logo tanda tangan mengikuti logo utama
-    if ($("signLogo")) $("signLogo").src = $("companyLogo").src;
-
-    localStorage.setItem("invoice_settings", JSON.stringify(settings));
-    closeModal();
-    calc();
-  }
-}
-
-function loadSettings(){
-  const raw = localStorage.getItem("invoice_settings");
-  if (!raw) return { name:null, tagline:null, logoDataUrl:null };
-  try { return JSON.parse(raw); } catch { return { name:null, tagline:null, logoDataUrl:null }; }
-}
-
-function initSettingsUI(){
-  const s = loadSettings();
-  if (s.name) $("companyName").textContent = s.name;
-  if (s.tagline) $("companyTagline").textContent = s.tagline;
-  if (s.logoDataUrl) $("companyLogo").src = s.logoDataUrl;
-
-  // Pastikan logo tanda tangan selalu mengikuti logo utama (agar ikut di Print/PDF)
-  const signEl = $("signLogo");
-  if (signEl) {
-    signEl.src = $("companyLogo").src;
-    signEl.onerror = () => { signEl.src = $("companyLogo").src; };
-  }
-
-  $("setName").value = $("companyName").textContent || "";
-  $("setTagline").value = $("companyTagline").textContent || "";
-}
-
-
+/* ---------- PDF (wait images) ---------- */
 async function waitImagesLoaded(container){
   const imgs = Array.from(container.querySelectorAll("img"));
   await Promise.all(imgs.map(img => {
     if (img.complete && img.naturalWidth > 0) return Promise.resolve();
     return new Promise(res => {
       img.onload = () => res();
-      img.onerror = () => res(); // jangan nge-hang
+      img.onerror = () => res();
     });
   }));
 }
 
 async function downloadPDF(){
   const el = $("invoicePaper");
-
-  // pastikan logo tanda tangan selalu sama dengan logo utama
-  if ($("signLogo")) $("signLogo").src = $("companyLogo").src;
-
-  // tunggu semua gambar ready supaya tidak hilang di PDF
+  syncPaperBrand();
   await waitImagesLoaded(el);
 
   const opt = {
     margin: 8,
     filename: `${$("invoiceNo").value || "invoice"}.pdf`,
-    image: { type: 'jpeg', quality: 0.98 },
-    html2canvas: { scale: 2, useCORS: true, allowTaint: true },
-    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    image: { type: "jpeg", quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
   };
 
-  if (window.html2pdf){
-    window.html2pdf().set(opt).from(el).save();
-  } else {
-    alert("Library PDF belum termuat. Coba gunakan Print dulu.");
-  }
+  if (window.html2pdf) window.html2pdf().set(opt).from(el).save();
+  else alert("PDF library belum termuat. Coba Print dulu.");
 }
 
+/* ---------- Bind ---------- */
 function bind(){
-  // Initial default
   if (!$("invoiceDate").value) $("invoiceDate").value = todayISO();
   if (!$("invoiceNo").value) $("invoiceNo").value = genInvoiceNo();
-  if (state.items.length === 0) state.items = [{qty:1, name:"", price:0}];
+
+  if (!state.items.length) state.items = [{ qty:1, name:"", price:0 }];
 
   renderItems();
   calc();
 
-  // form input triggers
-  ["invoiceType","invoiceDate","invoiceNo","customerName","customerPhone","customerAddress","discount","tax","terms",
-   "svcDevice","svcSN","svcWork","svcNote"
+  // inputs
+  [
+    "invoiceType","invoiceDate","invoiceNo",
+    "customerName","customerPhone","customerAddress",
+    "discount","tax","terms","svcDevice","svcSN","svcWork","svcNote"
   ].forEach(id => $(id).addEventListener("input", calc));
 
   $("btnAddRow").addEventListener("click", () => addRow());
-  $("btnSave").addEventListener("click", saveAll);
-  $("btnReset").addEventListener("click", () => { if(confirm("Reset semua data?")) resetAll(); });
+  $("btnSave").addEventListener("click", saveLocal);
+  $("btnReset").addEventListener("click", () => { if (confirm("Reset semua data?")) resetAll(); });
   $("btnPrint").addEventListener("click", () => window.print());
   $("btnPDF").addEventListener("click", downloadPDF);
 
-  // modal settings
+  // modal
   $("btnSettings").addEventListener("click", () => { initSettingsUI(); openModal(); });
   $("btnCloseModal").addEventListener("click", closeModal);
   $("btnApplySettings").addEventListener("click", applySettings);
@@ -343,7 +347,8 @@ function bind(){
 
 (function main(){
   initSettingsUI();
-  loadAll();
-  if (state.items.length === 0) state.items = [{qty:1, name:"", price:0}];
+  loadLocal();
+
+  if (!state.items.length) state.items = [{ qty:1, name:"", price:0 }];
   bind();
 })();
