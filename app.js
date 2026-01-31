@@ -2,6 +2,35 @@ const $ = (id) => document.getElementById(id);
 
 const state = { items: [] };
 
+/* =========================
+   AUTO INVOICE NO (GLOBAL)
+   Mulai 303 -> 304 -> 305 ...
+   ========================= */
+const INVOICE_START = 303;
+const INVOICE_COUNTER_KEY = "inv_counter";
+
+function nextInvoiceNumber(){
+  const raw = localStorage.getItem(INVOICE_COUNTER_KEY);
+
+  // kalau belum ada, set agar invoice pertama = INVOICE_START
+  let current = raw ? Number(raw) : (INVOICE_START - 1);
+
+  if (!Number.isFinite(current) || current < 0) current = INVOICE_START - 1;
+
+  const next = current + 1;
+  localStorage.setItem(INVOICE_COUNTER_KEY, String(next));
+  return String(next);
+}
+
+function ensureInvoiceNoAuto(){
+  const el = $("invoiceNo");
+  if (!el) return;
+  if (!el.value || el.value.trim() === ""){
+    el.value = nextInvoiceNumber();
+  }
+}
+/* ========================= */
+
 function rupiah(n){
   const v = Number(n || 0);
   return "Rp " + v.toLocaleString("id-ID");
@@ -13,15 +42,6 @@ function todayISO(){
   const mm = String(d.getMonth()+1).padStart(2,"0");
   const dd = String(d.getDate()).padStart(2,"0");
   return `${yyyy}-${mm}-${dd}`;
-}
-
-function genInvoiceNo(){
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  const rand = Math.floor(1000 + Math.random()*9000);
-  return `INV-${y}${m}${day}-${rand}`;
 }
 
 function typeLabel(v){
@@ -58,18 +78,13 @@ function saveSettings(s){
 }
 
 function syncPaperBrand(){
-  // name & tagline
   $("paperName").textContent = $("companyName").textContent || "";
   $("paperTagline").textContent = $("companyTagline").textContent || "";
-
-  // logo for paper
   $("paperLogo").src = $("companyLogo").src;
 
-  // stamp defaults to logo unless custom stamp exists
   const s = loadSettings();
   $("signLogo").src = s.stampDataUrl || $("companyLogo").src;
 
-  // hide text under stamp (CSS already hides it, but keep empty)
   const signName = $("pSignName");
   if (signName) signName.textContent = "";
 }
@@ -79,13 +94,10 @@ function initSettingsUI(){
 
   if (s.name) $("companyName").textContent = s.name;
   if (s.tagline) $("companyTagline").textContent = s.tagline;
-
   if (s.logoDataUrl) $("companyLogo").src = s.logoDataUrl;
 
-  // sync to paper
   syncPaperBrand();
 
-  // preload modal inputs
   $("setName").value = $("companyName").textContent || "";
   $("setTagline").value = $("companyTagline").textContent || "";
 }
@@ -99,7 +111,6 @@ function applySettings(){
   s.name = ($("setName").value || "").trim() || "NAMA TOKO";
   s.tagline = ($("setTagline").value || "").trim() || "Alamat / No. HP / Email";
 
-  // apply instantly
   $("companyName").textContent = s.name;
   $("companyTagline").textContent = s.tagline;
 
@@ -172,7 +183,6 @@ function bindItemsEvents(){
     if (key === "name") state.items[idx][key] = el.value;
     else state.items[idx][key] = Number(el.value);
 
-    // update subtotal cell only
     const it = state.items[idx];
     const sub = (Number(it.qty||0) * Number(it.price||0));
     const subEl = document.querySelector(`[data-subtotal="${idx}"]`);
@@ -205,7 +215,6 @@ function calc(){
   $("pCustPhone").textContent = $("customerPhone").value || "-";
   $("pCustAddress").textContent = $("customerAddress").value || "-";
 
-  // service section visibility
   const t = $("invoiceType").value;
   $("serviceSection").style.display = (t === "service" || t === "gabungan") ? "block" : "none";
 
@@ -223,7 +232,6 @@ function saveLocal(){
     customerAddress: $("customerAddress").value,
     items: state.items,
     discount: $("discount").value,
-    // tax DIHAPUS
     terms: $("terms").value,
     svcDevice: $("svcDevice").value,
     svcSN: $("svcSN").value,
@@ -241,7 +249,7 @@ function loadLocal(){
     const d = JSON.parse(raw);
     $("invoiceType").value = d.invoiceType || "penjualan";
     $("invoiceDate").value = d.invoiceDate || todayISO();
-    $("invoiceNo").value = d.invoiceNo || genInvoiceNo();
+    $("invoiceNo").value = d.invoiceNo || ""; // kosong -> auto isi
 
     $("customerName").value = d.customerName || "";
     $("customerPhone").value = d.customerPhone || "";
@@ -251,7 +259,6 @@ function loadLocal(){
     if (state.items.length === 0) state.items = [{qty:1, name:"", price:0}];
 
     $("discount").value = d.discount || 0;
-    // tax DIHAPUS
     $("terms").value = d.terms || "";
 
     $("svcDevice").value = d.svcDevice || "";
@@ -267,13 +274,12 @@ function resetAll(){
 
   $("invoiceType").value = "penjualan";
   $("invoiceDate").value = todayISO();
-  $("invoiceNo").value = genInvoiceNo();
+  $("invoiceNo").value = nextInvoiceNumber(); // <== AUTO GLOBAL
 
   $("customerName").value = "";
   $("customerPhone").value = "";
   $("customerAddress").value = "";
   $("discount").value = 0;
-  // tax DIHAPUS
   $("terms").value = "";
 
   $("svcDevice").value = "";
@@ -317,14 +323,15 @@ async function downloadPDF(){
 /* ---------- Bind ---------- */
 function bind(){
   if (!$("invoiceDate").value) $("invoiceDate").value = todayISO();
-  if (!$("invoiceNo").value) $("invoiceNo").value = genInvoiceNo();
+
+  // AUTO generate nomor kalau kosong
+  ensureInvoiceNoAuto();
 
   if (!state.items.length) state.items = [{ qty:1, name:"", price:0 }];
 
   renderItems();
   calc();
 
-  // inputs (tax DIHAPUS)
   [
     "invoiceType","invoiceDate","invoiceNo",
     "customerName","customerPhone","customerAddress",
@@ -337,7 +344,6 @@ function bind(){
   $("btnPrint").addEventListener("click", () => window.print());
   $("btnPDF").addEventListener("click", downloadPDF);
 
-  // modal
   $("btnSettings").addEventListener("click", () => { initSettingsUI(); openModal(); });
   $("btnCloseModal").addEventListener("click", closeModal);
   $("btnApplySettings").addEventListener("click", applySettings);
@@ -348,6 +354,9 @@ function bind(){
 (function main(){
   initSettingsUI();
   loadLocal();
+
+  if (!$("invoiceDate").value) $("invoiceDate").value = todayISO();
+  ensureInvoiceNoAuto();
 
   if (!state.items.length) state.items = [{ qty:1, name:"", price:0 }];
   bind();
