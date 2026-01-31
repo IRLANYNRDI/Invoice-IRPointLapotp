@@ -6,14 +6,16 @@
   <title>Invoice App</title>
   <link rel="stylesheet" href="style.css" />
 
-  <!-- html2pdf untuk Download PDF (opsional tapi praktis) -->
+  <!-- PDF generator -->
   <script defer src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
   <script defer src="app.js"></script>
 </head>
 
 <body>
   <div class="container">
-    <header class="topbar">
+
+    <!-- UI header (tidak ikut print) -->
+    <header class="topbar no-print">
       <div class="brand">
         <img id="companyLogo" class="logo" src="logo.png" alt="Logo" />
         <div class="brandText">
@@ -22,7 +24,7 @@
         </div>
       </div>
 
-      <div class="actions no-print">
+      <div class="actions">
         <button class="btn" id="btnSettings">Ubah Logo & Nama</button>
         <button class="btn" id="btnSave">Simpan</button>
         <button class="btn" id="btnReset">Reset</button>
@@ -31,6 +33,7 @@
       </div>
     </header>
 
+    <!-- Form input (tidak ikut print) -->
     <section class="panel no-print">
       <div class="grid2">
         <div>
@@ -69,8 +72,18 @@
       </div>
     </section>
 
-    <!-- Preview Invoice -->
+    <!-- INVOICE PAPER (yang dicetak & dipdf) -->
     <main id="invoicePaper" class="paper">
+
+      <!-- Brand untuk print/PDF (logo pasti ikut) -->
+      <div class="paperBrand">
+        <img id="paperLogo" src="logo.png" alt="Logo" />
+        <div class="paperBrandText">
+          <div id="paperName">IRPointLaptop</div>
+          <div id="paperTagline">Suralaga / 08190711124 / irlanyuni@gmail.com</div>
+        </div>
+      </div>
+
       <div class="invoiceHeader">
         <div>
           <h2>INVOICE</h2>
@@ -97,24 +110,22 @@
         </div>
 
         <div class="tableWrap">
-          <table class="tbl" id="itemsTable">
+          <table class="tbl">
             <thead>
               <tr>
-                <th style="width:60px">Qty</th>
+                <th style="width:70px">Qty</th>
                 <th>Nama Barang / Jasa</th>
-                <th style="width:140px">Harga (Rp)</th>
-                <th style="width:160px">Sub Total (Rp)</th>
-                <th class="no-print" style="width:80px">Aksi</th>
+                <th style="width:160px">Harga (Rp)</th>
+                <th style="width:170px">Sub Total (Rp)</th>
+                <th class="no-print" style="width:90px">Aksi</th>
               </tr>
             </thead>
-            <tbody id="itemsBody">
-              <!-- rows via JS -->
-            </tbody>
+            <tbody id="itemsBody"></tbody>
           </table>
         </div>
       </section>
 
-      <!-- Service Notes (muncul untuk service/gabungan) -->
+      <!-- Service Notes -->
       <section class="section" id="serviceSection">
         <h3>Catatan Service</h3>
         <div class="serviceGrid">
@@ -143,11 +154,11 @@
           <label>Catatan / Terms</label>
           <textarea id="terms" rows="4" placeholder="Contoh: Barang yang sudah dibeli tidak dapat dikembalikan. Garansi service 7 hari."></textarea>
 
+          <!-- Hormat saya (sejajar kiri dengan Terms) -->
           <div class="sign">
             <p>Hormat saya,</p>
-            <img id="signLogo" class="signLogo" src="logo.png" alt="Stamp/Logo"
-                 style="width:90px; height:90px; max-width:90px; max-height:90px; object-fit:contain;" />
-            <p id="pSignName">NAMA TOKO</p>
+            <img id="signLogo" class="signLogo" src="logo.png" alt="Stamp/Logo" />
+            <p id="pSignName"></p> <!-- disembunyikan via CSS -->
           </div>
         </div>
 
@@ -156,6 +167,7 @@
             <span>Subtotal</span>
             <b id="sumSubtotal">Rp 0</b>
           </div>
+
           <div class="row">
             <span>Diskon</span>
             <div class="inline">
@@ -163,6 +175,7 @@
               <small>Rp</small>
             </div>
           </div>
+
           <div class="row">
             <span>Pajak</span>
             <div class="inline">
@@ -170,6 +183,7 @@
               <small>Rp</small>
             </div>
           </div>
+
           <div class="row total">
             <span>Total</span>
             <b id="sumTotal">Rp 0</b>
@@ -189,7 +203,7 @@
 
       <div class="modalBody">
         <label>Nama Toko</label>
-        <input id="setName" type="text" placeholder="Contoh: LaptopTe" />
+        <input id="setName" type="text" placeholder="Contoh: IRPointLaptop" />
 
         <label>Tagline / Kontak</label>
         <input id="setTagline" type="text" placeholder="Alamat / No HP / Email" />
@@ -197,8 +211,12 @@
         <label>Logo (upload)</label>
         <input id="setLogo" type="file" accept="image/*" />
 
+        <label>Logo Stamp / Tanda Tangan (opsional)</label>
+        <input id="setStamp" type="file" accept="image/*" />
+        <p class="hint">Jika kosong, stamp akan pakai logo utama.</p>
+
         <button class="btn primary" id="btnApplySettings">Simpan Perubahan</button>
-        <p class="hint">Perubahan disimpan di browser (localStorage). Kalau pindah device, tinggal set ulang.</p>
+        <p class="hint">Tersimpan di browser (localStorage). Kalau pindah device, set ulang.</p>
       </div>
     </div>
   </div>
