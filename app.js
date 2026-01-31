@@ -69,8 +69,9 @@ function syncPaperBrand(){
   const s = loadSettings();
   $("signLogo").src = s.stampDataUrl || $("companyLogo").src;
 
-  // (text under stamp is disabled by CSS, but keep empty)
-  $("pSignName").textContent = "";
+  // hide text under stamp (CSS already hides it, but keep empty)
+  const signName = $("pSignName");
+  if (signName) signName.textContent = "";
 }
 
 function initSettingsUI(){
@@ -191,8 +192,7 @@ function bindItemsEvents(){
 function calc(){
   const subtotal = state.items.reduce((sum, it) => sum + (Number(it.qty||0) * Number(it.price||0)), 0);
   const disc = Number($("discount").value || 0);
-  const tax = Number($("tax").value || 0);
-  const total = Math.max(0, subtotal - disc + tax);
+  const total = Math.max(0, subtotal - disc);
 
   $("sumSubtotal").textContent = rupiah(subtotal);
   $("sumTotal").textContent = rupiah(total);
@@ -223,7 +223,7 @@ function saveLocal(){
     customerAddress: $("customerAddress").value,
     items: state.items,
     discount: $("discount").value,
-    tax: $("tax").value,
+    // tax DIHAPUS
     terms: $("terms").value,
     svcDevice: $("svcDevice").value,
     svcSN: $("svcSN").value,
@@ -251,7 +251,7 @@ function loadLocal(){
     if (state.items.length === 0) state.items = [{qty:1, name:"", price:0}];
 
     $("discount").value = d.discount || 0;
-    $("tax").value = d.tax || 0;
+    // tax DIHAPUS
     $("terms").value = d.terms || "";
 
     $("svcDevice").value = d.svcDevice || "";
@@ -273,7 +273,7 @@ function resetAll(){
   $("customerPhone").value = "";
   $("customerAddress").value = "";
   $("discount").value = 0;
-  $("tax").value = 0;
+  // tax DIHAPUS
   $("terms").value = "";
 
   $("svcDevice").value = "";
@@ -324,11 +324,11 @@ function bind(){
   renderItems();
   calc();
 
-  // inputs
+  // inputs (tax DIHAPUS)
   [
     "invoiceType","invoiceDate","invoiceNo",
     "customerName","customerPhone","customerAddress",
-    "discount","tax","terms","svcDevice","svcSN","svcWork","svcNote"
+    "discount","terms","svcDevice","svcSN","svcWork","svcNote"
   ].forEach(id => $(id).addEventListener("input", calc));
 
   $("btnAddRow").addEventListener("click", () => addRow());
