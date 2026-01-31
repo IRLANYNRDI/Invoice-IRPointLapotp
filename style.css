@@ -53,7 +53,7 @@ textarea { resize:vertical; }
 .summaryRight input { width:120px; text-align:right; }
 .summaryRight .total { font-size:18px; }
 
-.sign { margin-top:14px; text-align:right; }
+.sign { margin-top:14px; text-align:left; }
 .signLogo{
   width:90px !important;
   height:90px !important;
