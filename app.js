@@ -117,7 +117,7 @@ function calc(){
   $("pCustAddress").textContent = $("customerAddress").value || "-";
 
   // signature uses company name
-  $("pSignName").textContent = $("companyName").textContent || "—";
+  $("pSignName").textContent = "";
 
   // service section visibility
   const t = $("invoiceType").value;
