@@ -92,7 +92,7 @@ textarea { resize:vertical; }
 .modalBody { margin-top:10px; display:grid; gap:10px; }
 .hint { color:var(--muted); font-size:12px; margin:0; }
 
-@media (max-width: 860px){
+@media (max-width: 640px){
   .grid2 { grid-template-columns:1fr; }
   .invoiceHeader { flex-direction:column; }
   .summary { grid-template-columns:1fr; }
@@ -100,8 +100,39 @@ textarea { resize:vertical; }
 
 /* Print */
 @media print {
+  @page {
+    size: A4;
+    margin: 10mm;   /* kecil dan stabil */
+  }
+
   body { background:#fff; }
   .no-print { display:none !important; }
-  .paper { border:none; padding:0; }
-  .container { max-width:none; margin:0; }
+
+  .container {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .paper {
+    border: none !important;
+    padding: 0 !important;     /* hemat ruang */
+    margin: 0 !important;
+  }
+
+  /* cegah elemen penting kepotong dan terdorong */
+  .invoiceHeader, .summary, #serviceSection {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* tabel jangan memecah baris di tengah */
+  table, tr, td, th {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* kecilkan sedikit font/padding biar muat 1 halaman lebih sering */
+  .tbl th, .tbl td { padding: 6px !important; }
+  textarea, input { padding: 6px 8px !important; }
 }
