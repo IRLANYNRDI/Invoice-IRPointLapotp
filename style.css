@@ -45,29 +45,30 @@ textarea { resize:vertical; }
 .serviceGrid { display:grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap:12px; }
 .serviceGrid .full { grid-column: 1 / -1; }
 
-.summary { display:grid; grid-template-columns: 1.2fr 0.8fr; gap:16px; margin-top:16px; }
-.summaryRight { border:1px solid var(--border); border-radius:14px; padding:12px; }
-.summaryRight .row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px dashed var(--border); }
-.summaryRight .row:last-child { border-bottom:none; }
-.summaryRight .inline { display:flex; align-items:center; gap:8px; }
-.summaryRight input { width:120px; text-align:right; }
-.summaryRight .total { font-size:18px; }
+/* pastikan kolom kiri memang kolom flex (sejajar kiri) */
+.summaryLeft{
+  display:flex;
+  flex-direction:column;
+}
 
+/* SIGN sejajar kiri dengan Terms */
 .sign{
   margin-top:12px;
   text-align:left;
   align-self:flex-start;
 }
 
-.signLogo{
-  width:90px !important;
-  height:90px !important;
-  max-width:90px !important;
-  max-height:90px !important;
-  object-fit:contain !important;
-  display:block !important; 
-  margin:8px 0 6px 0 !important; 
+/* rapihin margin paragraf */
+.sign p{
+  margin:0;
 }
+
+/* logo tanda tangan selalu mulai dari kiri */
+.signLogo{
+  display:block !important;
+  margin:8px 0 6px 0 !important;
+}
+
 
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:16px; }
 .modal.hidden { display:none; }
