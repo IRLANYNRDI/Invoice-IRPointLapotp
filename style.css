@@ -100,39 +100,28 @@ textarea { resize:vertical; }
 
 /* Print */
 @media print {
-  @page {
-    size: A4;
-    margin: 10mm;   /* kecil dan stabil */
-  }
+  @page { size: A4; margin: 6mm; }
 
   body { background:#fff; }
   .no-print { display:none !important; }
 
-  .container {
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
+  .container { max-width:none !important; margin:0 !important; padding:0 !important; }
+  .paper { border:none !important; padding:0 !important; margin:0 !important; }
 
-  .paper {
-    border: none !important;
-    padding: 0 !important;     /* hemat ruang */
-    margin: 0 !important;
-  }
+  /* hemat tinggi */
+  .paperBrand{ margin-bottom:6px !important; }
+  .section{ margin-top:10px !important; }
+  .summary{ margin-top:10px !important; }
 
-  /* cegah elemen penting kepotong dan terdorong */
-  .invoiceHeader, .summary, #serviceSection {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  /* cegah pecah jadi halaman berikutnya */
+  .invoiceHeader, .summary, #serviceSection { break-inside: avoid; page-break-inside: avoid; }
+  table, tr, td, th { break-inside: avoid; page-break-inside: avoid; }
 
-  /* tabel jangan memecah baris di tengah */
-  table, tr, td, th {
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
+  /* tabel jangan melebar & bikin overflow saat print */
+  .tbl { min-width:0 !important; }
+  .tableWrap { overflow:visible !important; border:none !important; }
 
-  /* kecilkan sedikit font/padding biar muat 1 halaman lebih sering */
-  .tbl th, .tbl td { padding: 6px !important; }
-  textarea, input { padding: 6px 8px !important; }
+  /* kecilkan padding biar muat 1 halaman */
+  .tbl th, .tbl td { padding:6px !important; }
+  textarea, input { padding:6px 8px !important; }
 }
