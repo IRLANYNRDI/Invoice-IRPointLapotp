@@ -69,9 +69,6 @@ textarea { resize:vertical; }
   margin:8px 0 6px 0 !important;
 }
 
-#pSignName{
-  display:none !important;
-}
 
 .modal { position:fixed; inset:0; background:rgba(0,0,0,.35); display:flex; align-items:center; justify-content:center; padding:16px; }
 .modal.hidden { display:none; }
